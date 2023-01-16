@@ -25,7 +25,7 @@ DESCRIPTION = f"""
 async def on_startup(_): # sends a notification to console that bot is running
     logging.info("Bot is running")
 
-@dp.message_handler(commands=['start']) # welcome command
+@dp.message_handler(commands=['start']) # welcome and launch bot command
 async def start_send(message: types.Message):
     await message.answer('Добро пожаловать!')
     await message.delete()
@@ -47,4 +47,4 @@ async def echo(message: types.Message):
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=False, on_startup=on_startup)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
