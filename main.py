@@ -22,25 +22,25 @@ DESCRIPTION = f"""
 изображение вложением с темой в виде номера задачи на определенную почту
 """
 
-async def on_startup(_):
+async def on_startup(_): # sends a notification to console that bot is running
     logging.info("Bot is running")
 
-@dp.message_handler(commands=['start'])
-async def echo(message: types.Message):
+@dp.message_handler(commands=['start']) # welcome command
+async def start_send(message: types.Message):
     await message.answer('Добро пожаловать!')
     await message.delete()
 
-@dp.message_handler(commands=['help'])
-async def echo(message: types.Message):
+@dp.message_handler(commands=['help']) # help command
+async def help_send(message: types.Message):
     await message.answer(text=HELP)
     await message.delete()
 
-@dp.message_handler(commands=['description'])
-async def echo(message: types.Message):
+@dp.message_handler(commands=['description']) # description command
+async def description_send(message: types.Message):
     await message.answer(text=DESCRIPTION)
     await message.delete()
 
-@dp.message_handler()
+@dp.message_handler() # echo command (template)
 async def echo(message: types.Message):
     await message.answer(text=message.text)
     await message.delete()
