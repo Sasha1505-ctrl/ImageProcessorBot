@@ -1,5 +1,9 @@
 import logging
 import os
+import re
+import smtplib
+from email.mime.image import MIMEImage  # Изображения
+from email.mime.multipart import MIMEMultipart
 from typing import List, Union
 
 from PIL import Image
@@ -7,10 +11,6 @@ from aiogram import types, Bot
 from aiogram.dispatcher.filters import BoundFilter
 from aiogram.types import InputFile
 from config import TOKEN_API, SIZE, FROM_EMAIL, MY_PASSWORD, HOST, PORT, USERS, FILE_NAME
-import smtplib
-from email.mime.multipart import MIMEMultipart
-import mimetypes  # Импорт класса для обработки неизвестных MIME-типов, базирующихся на расширении файла
-from email.mime.image import MIMEImage  # Изображения
 
 bot = Bot(TOKEN_API)
 
@@ -47,35 +47,49 @@ class MimeTypeFilter(BoundFilter):
 async def proc_document_or_image(message):
     if message.document:
         file_info = await bot.get_file(message.document.file_id)
-        await message.document.download(file_info.file_path)
-        with Image.open(file_info.file_path) as img:  # Открытие изображения
-            # изменяем размер
-            new_image = img.resize(SIZE)
-            logging.info(new_image)
-            # сохранение картинки
-            new_image.save(FILE_NAME)
-            photo = InputFile(FILE_NAME)
-        await bot.send_photo(chat_id=message.from_user.id,
-                             photo=photo)
-        os.remove(file_info.file_path)
-        send_email(FILE_NAME)
+        caption = message.caption
+        pattern = re.compile('^[A-Z]{2}-\d{4}$')
+        if caption is not None and re.fullmatch(pattern=pattern, string=caption):
+            logging.info(caption)
+            await message.document.download(file_info.file_path)
+            with Image.open(file_info.file_path) as img:  # Открытие изображения
+                # изменяем размер
+                new_image = img.resize(SIZE)
+                logging.info(new_image)
+                # сохранение картинки
+                new_image.save(FILE_NAME)
+                photo = InputFile(FILE_NAME)
+            await bot.send_photo(chat_id=message.from_user.id,
+                                 photo=photo, caption=caption)
+            os.remove(file_info.file_path)
+            send_email(FILE_NAME, caption)
+        else:
+            await message.answer(text='Пожалуйста, введите номер задачи')
+            await message.delete()
     if message.photo:
         file_info = await bot.get_file(message.photo[-1].file_id)
-        await message.photo[-1].download(file_info.file_path.split('/')[1])
-        with Image.open(file_info.file_path.split('/')[1]) as img:  # Открытие изображения
-            # изменяем размер
-            new_image = img.resize(SIZE)
-            logging.info(new_image)
-            # сохранение картинки
-            new_image.save(FILE_NAME)
-            photo = InputFile(FILE_NAME)
-        await bot.send_photo(chat_id=message.from_user.id,
-                             photo=photo)
-        os.remove(file_info.file_path.split('/')[1])
-        send_email(FILE_NAME)
+        caption = message.caption
+        pattern = re.compile('^[A-Z]{2}-\d{4}$')
+        if caption is not None and re.fullmatch(pattern=pattern, string=caption):
+            logging.info(caption)
+            await message.photo[-1].download(file_info.file_path.split('/')[1])
+            with Image.open(file_info.file_path.split('/')[1]) as img:  # Открытие изображения
+                # изменяем размер
+                new_image = img.resize(SIZE)
+                logging.info(new_image)
+                # сохранение картинки
+                new_image.save(FILE_NAME)
+                photo = InputFile(FILE_NAME)
+            await bot.send_photo(chat_id=message.from_user.id,
+                                 photo=photo, caption=caption)
+            os.remove(file_info.file_path.split('/')[1])
+            send_email(FILE_NAME, caption)
+        else:
+            await message.answer(text='Пожалуйста, введите корректный номер задачи')
+            await message.delete()
 
 
-def send_email(filename):
+def send_email(filename, subject):
     # Get each user detail and send the email:
     file = processing_file(filename)
     email = USERS
@@ -85,7 +99,7 @@ def send_email(filename):
         server.set_debuglevel(True)
         msg = MIMEMultipart()
         # setup the parameters of the message
-        msg['Subject'] = 'number_task'
+        msg['Subject'] = subject
         msg.attach(file)  # Присоединяем файл к сообщению
         # send the message via the server set up earlier.
         server.sendmail(FROM_EMAIL, email, msg.as_string())
@@ -93,7 +107,7 @@ def send_email(filename):
 
 
 def processing_file(filename):
-        with open(filename, 'rb') as fp:
-            file = MIMEImage(fp.read(), _subtype=subtype)
+    with open(filename, 'rb') as fp:
+        file = MIMEImage(fp.read())
         file.add_header('Content-Disposition', 'attachment', filename=filename)  # Добавляем заголовки
     return file
