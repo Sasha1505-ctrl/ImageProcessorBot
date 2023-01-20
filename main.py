@@ -1,11 +1,8 @@
 import asyncio
-import os
 from aiogram import Bot, executor, types
 from aiogram.dispatcher import Dispatcher
-from aiogram.types import InputFile
 from config import TOKEN_API, SIZE
 from tools import MimeTypeFilter, proc_document_or_image
-from PIL import Image  # Для обработки изображения
 import logging
 
 # Configure logging
