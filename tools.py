@@ -4,12 +4,12 @@ import re
 import smtplib
 from email.mime.image import MIMEImage  # Изображения
 from email.mime.multipart import MIMEMultipart
-from typing import List, Union
+from typing import Union, List
 
 from PIL import Image
-from aiogram import types, Bot
+from aiogram import Bot
 from aiogram.dispatcher.filters import BoundFilter
-from aiogram.types import InputFile
+from aiogram.types import Message, InputFile
 
 from config import TOKEN_API, SIZE, FROM_EMAIL, MY_PASSWORD, HOST, PORT, USERS, FILE_NAME, FORMAT
 
@@ -34,7 +34,7 @@ class MimeTypeFilter(BoundFilter):
                 f"filter mime_types must be a str or list of str, not {type(mime_type).__name__}"
             )
 
-    async def check(self, obj: types.Message):
+    async def check(self, obj: Message):
         if not obj.document:
             return False
 
@@ -73,7 +73,7 @@ async def proc_document_or_image(message):
             await bot.send_photo(chat_id=message.from_user.id, photo=photo,
                                  caption=f'user.id: {message.from_user.id}, datatime: {tconv(message.date)}')
             os.remove(file_info.file_path.split('/')[1])
-            send_email(FILE_NAME, messag.caption)
+            send_email(FILE_NAME, message.caption)
         else:
             await message.answer(text='Пожалуйста, введите корректный номер задачи')
             await message.delete()
