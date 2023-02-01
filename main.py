@@ -1,9 +1,10 @@
 import asyncio
-from aiogram import Bot, executor, types
+import logging
+from aiogram import Bot, executor
 from aiogram.dispatcher import Dispatcher
+from aiogram.types import Message, ContentTypes as CT
 from config import TOKEN_API, SIZE
 from tools import MimeTypeFilter, proc_document_or_image
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,42 +34,41 @@ async def on_startup(_):  # sends a notification to console that bot is running
 
 
 @dp.message_handler(commands=['start'])  # welcome and launch bot command
-async def start_send(message: types.Message):
+async def start_send(message: Message):
     await message.answer('Добро пожаловать!')
     await message.delete()
 
 
 @dp.message_handler(commands=['help'])  # help command
-async def help_send(message: types.Message):
+async def help_send(message: Message):
     await message.answer(text=HELP)
     await message.delete()
 
 
 @dp.message_handler(commands=['description'])  # description command
-async def description_send(message: types.Message):
+async def description_send(message: Message):
     await message.answer(text=DESCRIPTION)
     await message.delete()
 
 
 @dp.message_handler(
-    content_types=types.ContentTypes.DOCUMENT,
-    mime_type=["image/jpeg", "image/png"]
+    content_types=CT.DOCUMENT, mime_type=["image/jpeg", "image/png"]
 )  # image processing command for original photos
-async def doc_proc(message: types.Message):
+async def doc_proc(message: Message):
     await proc_document_or_image(message)
     await asyncio.sleep(0.1)
 
 
 @dp.message_handler(
-    content_types=types.ContentTypes.PHOTO
-)  # image processing command (for compressed photos)
-async def image_proc(message: types.Message):
+    content_types=CT.PHOTO
+)  # image processing command
+async def image_proc(message: Message):
     await proc_document_or_image(message)
     await asyncio.sleep(0.1)
 
 
 @dp.message_handler()  # finally command
-async def finally_send(message: types.Message):
+async def description_send(message: Message):
     await message.answer(text='Пожалуйста, загрузите изображение')
     await message.delete()
 
