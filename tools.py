@@ -82,15 +82,15 @@ def processing_and_saving_image(file_info):
     img = img.resize(SIZE)
     logging.info(img)
     # сохранение картинки
-    photo = io.BytesIO()
-    img.save(photo, format='PNG')
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
     img.seek(0)
-    photo.seek(0)
-    return photo
+    buffer.seek(0)
+    return buffer
 
 
-async def send_email(filename, subject):
-    file = processing_file(filename)
+async def send_email(buffer, subject):
+    file = processing_file(buffer)
     email = USERS
     # настройка SMTP сервера
     with smtplib.SMTP_SSL(host=HOST, port=PORT) as server:
@@ -113,7 +113,7 @@ check_tracker = lambda message: message.caption is not None and re.fullmatch(pat
                                                                              string=message.caption)
 
 
-def processing_file(filename):
-    file = MIMEImage(filename.read())
+def processing_file(buffer):
+    file = MIMEImage(buffer.read())
     file.add_header('Content-Disposition', 'attachment', filename='processed_image.png')  # Добавляем заголовки
     return file
