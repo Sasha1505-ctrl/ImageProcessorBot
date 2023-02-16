@@ -1,19 +1,23 @@
 import logging
 import os
 import re
+import io
 import smtplib
 from email.mime.image import MIMEImage  # Изображения
 from email.mime.multipart import MIMEMultipart
 from typing import Union, List
 
+import requests
 from PIL import Image
 from aiogram import Bot
 from aiogram.dispatcher.filters import BoundFilter
-from aiogram.types import Message, InputFile
+from aiogram.types import Message, InputFile, ChatActions
 
-from config import TOKEN_API, SIZE, FROM_EMAIL, MY_PASSWORD, HOST, PORT, USERS, FILE_NAME, FORMAT
+from config import TOKEN_API, SIZE, FROM_EMAIL, MY_PASSWORD, HOST, PORT, USERS, FORMAT
 
 bot = Bot(TOKEN_API)
+URL = f'https://api.telegram.org/bot{TOKEN_API}/getfile?file_id='
+URL_GET = f'https://api.telegram.org/file/bot{TOKEN_API}/'
 
 
 class MimeTypeFilter(BoundFilter):
@@ -47,48 +51,46 @@ class MimeTypeFilter(BoundFilter):
 async def proc_document_or_image(message):
     if message.document:
         if check_tracker(message):
-            file_info = await bot.get_file(message.document.file_id)
-            await message.document.download(file_info.file_path)
-            with Image.open(file_info.file_path) as img:  # Открытие изображения
-                await processing_and_saving_image(img)
-                # открываем фото для загрузки в телеграм
-                photo = InputFile(FILE_NAME)
-                # бот может отсылать сообщение как одному пользователю через from_user.id, так и в беседу через chat.id
-            await bot.send_photo(chat_id=message.from_user.id, photo=photo,
-                                 caption=f'user_id: {message.from_user.id}, datatime: {tconv(message.date)}')
-            os.remove(file_info.file_path)
-            send_email(FILE_NAME, message.caption)
+            file_info = message.document.file_id
+            # бот может отсылать сообщение как одному пользователю через from_user.id, так и в беседу через chat.id
+            await ChatActions.upload_photo()
+            await message.answer_photo(photo=InputFile(processing_and_saving_image(file_info)),
+                                       caption=f'user.id: {message.from_user.id}, datatime: {tconv(message.date)}')
+            await send_email(processing_and_saving_image(file_info), message.caption)
         else:
             await message.answer(text='Пожалуйста, введите корректный номер задачи')
             await message.delete()
     if message.photo:
         if check_tracker(message):
-            file_info = await bot.get_file(message.photo[-1].file_id)
-            await message.photo[-1].download(file_info.file_path.split('/')[1])
-            with Image.open(file_info.file_path.split('/')[1]) as img:  # Открытие изображения
-                await processing_and_saving_image(img)
-                # открываем фото для загрузки в телеграм
-                photo = InputFile(file_info.file_path.split('/')[1])
-                # бот может отсылать сообщение как одному пользователю через from_user.id, так и в беседу через chat.id
-            await bot.send_photo(chat_id=message.from_user.id, photo=photo,
-                                 caption=f'user.id: {message.from_user.id}, datatime: {tconv(message.date)}')
-            os.remove(file_info.file_path.split('/')[1])
-            send_email(FILE_NAME, message.caption)
+            file_info = message.photo[3].file_id
+            # бот может отсылать сообщение как одному пользователю через from_user.id, так и в беседу через chat.id
+            await ChatActions.upload_photo()
+            await message.answer_photo(photo=InputFile(processing_and_saving_image(file_info)),
+                                       caption=f'user.id: {message.from_user.id}, datatime: {tconv(message.date)}')
+            await send_email(processing_and_saving_image(file_info), message.caption)
         else:
             await message.answer(text='Пожалуйста, введите корректный номер задачи')
             await message.delete()
 
 
-async def processing_and_saving_image(img):
+def processing_and_saving_image(file_info):
+    resp = requests.get(URL + file_info)
+    img_path = resp.json()['result']['file_path']
+    img = requests.get(URL_GET + img_path)
+    img = Image.open(io.BytesIO(img.content))
     # изменяем размер
-    new_image = img.resize(SIZE)
-    logging.info(new_image)
+    img = img.resize(SIZE)
+    logging.info(img)
     # сохранение картинки
-    new_image.save(FILE_NAME)
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    img.seek(0)
+    buffer.seek(0)
+    return buffer
 
 
-def send_email(filename, subject):
-    file = processing_file(filename)
+async def send_email(buffer, subject):
+    file = processing_file(buffer)
     email = USERS
     # настройка SMTP сервера
     with smtplib.SMTP_SSL(host=HOST, port=PORT) as server:
@@ -111,8 +113,7 @@ check_tracker = lambda message: message.caption is not None and re.fullmatch(pat
                                                                              string=message.caption)
 
 
-def processing_file(filename):
-    with open(filename, 'rb') as fp:
-        file = MIMEImage(fp.read())
-        file.add_header('Content-Disposition', 'attachment', filename=filename)  # Добавляем заголовки
+def processing_file(buffer):
+    file = MIMEImage(buffer.read())
+    file.add_header('Content-Disposition', 'attachment', filename='processed_image.png')  # Добавляем заголовки
     return file

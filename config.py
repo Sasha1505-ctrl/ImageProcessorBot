@@ -1,6 +1,5 @@
 TOKEN_API = ''  # token your bot from BotFather
 SIZE = (1024, 768)
-FILE_NAME = 'done_image.jpg'
 FORMAT = '^[A-Z]{2}-\d{4}$'
 
 # if using gmail.com
